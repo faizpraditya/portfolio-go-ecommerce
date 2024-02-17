@@ -22,14 +22,14 @@ func AddProductToCart(c context.Context, prod *mongo.Collection, user *mongo.Col
 	return nil
 }
 
-func RemoveCartItem() {
-
+func RemoveCartItem(c context.Context, prod *mongo.Collection, user *mongo.Collection, prodID primitive.ObjectID, userQueryID string) error {
+	return nil
 }
 
-func BuyItemFormCart() {
-
+func BuyItemFormCart(c context.Context, user *mongo.Collection, userQueryID string) error {
+	return nil
 }
 
-func InstantBuyer() {
-
+func InstantBuyer(c context.Context, prod *mongo.Collection, user *mongo.Collection, prodID primitive.ObjectID, userQueryID string) error {
+	return nil
 }
