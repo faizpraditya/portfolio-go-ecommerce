@@ -9,12 +9,14 @@ import (
 
 	"github.com/faizpraditya/go-ecommerce/database"
 	"github.com/faizpraditya/go-ecommerce/models"
+	generate "github.com/faizpraditya/go-ecommerce/tokens"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/mgo.v2/bson"
 )
 
 var UserCollection *mongo.Collection = database.UserData(database.Client, "Users")
@@ -29,12 +31,12 @@ func HashPassword(password string) string {
 	return string(bytes)
 }
 
-func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
-	err := bcrypt.CompareHashAndPassword([]byte(givenPassword), []byte(userPassword))
+func VerifyPassword(userpassword string, givenpassword string) (bool, string) {
+	err := bcrypt.CompareHashAndPassword([]byte(givenpassword), []byte(userpassword))
 	valid := true
 	msg := ""
 	if err != nil {
-		msg = "Login or Password is incorrect"
+		msg = "Login Or Passowrd is Incorerct"
 		valid = false
 	}
 	return valid, msg
@@ -44,13 +46,11 @@ func SignUp() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-
 		var user models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
 		validationErr := Validate.Struct(user)
 		if validationErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr})
@@ -64,12 +64,9 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
-			return
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User already exists"})
 		}
-
 		count, err = UserCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
-
 		defer cancel()
 		if err != nil {
 			log.Panic(err)
@@ -77,7 +74,7 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 		if count > 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "this phone number is already in use"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Phone is already in use"})
 			return
 		}
 		password := HashPassword(*user.Password)
@@ -107,25 +104,20 @@ func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-
 		var user models.User
 		var founduser models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err})
 			return
 		}
-
 		err := UserCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&founduser)
-
+		defer cancel()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "login or password incorrect"})
 			return
 		}
-
 		PasswordIsValid, msg := VerifyPassword(*user.Password, *founduser.Password)
-
 		defer cancel()
-
 		if !PasswordIsValid {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			fmt.Println(msg)
@@ -133,10 +125,9 @@ func Login() gin.HandlerFunc {
 		}
 		token, refreshToken, _ := generate.TokenGenerator(*founduser.Email, *founduser.First_Name, *founduser.Last_Name, founduser.User_ID)
 		defer cancel()
-
 		generate.UpdateAllTokens(token, refreshToken, founduser.User_ID)
-
 		c.JSON(http.StatusFound, founduser)
+
 	}
 }
 
@@ -178,13 +169,15 @@ func SearchProduct() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 		if err := cursor.Err(); err != nil {
-			// Don't forget to log errors to get the point across.
+			// Don't forget to log errors. I log them really simple here just
+			// to get the point across.
 			log.Println(err)
 			c.IndentedJSON(400, "invalid")
 			return
 		}
 		defer cancel()
 		c.IndentedJSON(200, productlist)
+
 	}
 }
 
